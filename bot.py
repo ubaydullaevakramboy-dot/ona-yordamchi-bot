@@ -1,5 +1,6 @@
 import os
 import logging
+import httpx
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -9,32 +10,28 @@ logger = logging.getLogger(__name__)
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
-SYSTEM_PROMPT = """Sen "Ona Yordamchisi" — aqlli, mehribon va tajribali oila maslahatchisisisan. Sening asosiy vazifang: 9 yoshdan 17 yoshgacha bo'lgan bolalar tarbiyasi bo'yicha onaga amaliy, ilmiy asoslangan va O'zbek madaniyatiga mos maslahatlar berish.
+SYSTEM_PROMPT = """Sen "Ona Yordamchisi" - aqlli, mehribon va tajribali oila maslahatchisisisan. Sening asosiy vazifang: 9 yoshdan 17 yoshgacha bolgan bolalar tarbiyasi boyicha onaga amaliy, ilmiy asoslangan va Ozbekiston madaniyatiga mos maslahatlar berish.
 
 SEN KIM:
-- O'zbek oilasini, urf-odatlarini va milliy qadriyatlarini yaxshi bilasan
+- Ozbekiston oilasini, urf-odatlarini va milliy qadriyatlarini yaxshi bilasan
 - Zamonaviy pedagogika va psixologiyadan xabardorsan
 - Har doim mehriban, tushunuvchi va amaliy maslahat berasan
-- Hech qachon o'qituvchilik ohangida gapirma — suhbatdosh sifatida gapirasiz
+- Hech qachon oquvchilik ohangida gapirma
 
-ASOSIY YO'NALISHLAR:
-- Kunlik rejim: uyg'onish, uxlash, uy vazifalari, ekran vaqti chegaralari
-- Ta'lim: o'qishga rag'batlantirish, uy vazifasi, imtihon tayyorgarlik
-- Tarbiya: intizom, odoblilik, mas'uliyat, o'smirlik davri muloqoti
+ASOSIY YONALISHLAR:
+- Kunlik rejim: uyqonish, uxlash, uy vazifalari, ekran vaqti
+- Talim: oqushga ragbatlantirish, uy vazifasi, imtihon tayyorgarlik
+- Tarbiya: intizom, odoblilik, masuliyat, osmirlk davri muloqoti
 - Muloqot: bola bilan suhbat, tengdoshlar bosimi, internet xavfsizligi
 
 JAVOB QOIDALARI:
-- Faqat O'ZBEKCHA gapir
+- Faqat OZBEKCHA gapirsiz
 - Oddiy, tushunarli til
 - Qisqa va aniq javoblar
-- Amaliy, hoziroq qo'llab bo'ladigan maslahatlar
-- Agar qiyin vaziyat aytilsa — avval tushunganingni bildirasan, keyin maslahat berasan
-- Bolani ham, onani ham ayblama — yechim tomon yo'llat
-- Javob oxirida qo'shimcha savol bersang — faqat bitta"""
+- Amaliy maslahatlar
+- Avval tushunganingni bildirasan, keyin maslahat berasan"""
 
 user_histories = {}
-
-import httpx
 
 async def call_claude(user_id: int, user_message: str) -> str:
     if user_id not in user_histories:
@@ -42,7 +39,6 @@ async def call_claude(user_id: int, user_message: str) -> str:
     
     user_histories[user_id].append({"role": "user", "content": user_message})
     
-    # Keep last 10 messages only
     if len(user_histories[user_id]) > 10:
         user_histories[user_id] = user_histories[user_id][-10:]
     
@@ -63,7 +59,7 @@ async def call_claude(user_id: int, user_message: str) -> str:
         )
         data = response.json()
         if "error" in data:
-            return f"⚠️ Xatolik: {data['error']['message']}"
+            return f"Xatolik: {data['error']['message']}"
         
         reply = data["content"][0]["text"]
         user_histories[user_id].append({"role": "assistant", "content": reply})
@@ -71,37 +67,23 @@ async def call_claude(user_id: int, user_message: str) -> str:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🌸 Assalomu alaykum, onajon!\n\n"
-        "Men sizning yordamchingizman — 9-17 yoshli farzandlaringiz tarbiyasi, "
-        "ta'limi va kunlik rejimi bo'yicha maslahat beraman.\n\n"
-        "Savolingizni yozing, men yordam beraman 💕\n\n"
-        "📋 Mavzular:\n"
-        "• 📱 Telefon vaqtini cheklash\n"
-        "• 📚 Uy vazifasi bajarmaslik\n"
-        "• 😤 O'smir bilan muloqot\n"
-        "• 🌙 Uyqu rejimi\n"
-        "• 🎮 O'yin qo'ymaslik\n"
-        "• 💭 Bola bilan suhbat\n\n"
-        "Istalgan savolingizni yozing!"
-    )
-
-async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🌸 *Ona Yordamchisi — yordam*\n\n"
-        "Menga istalgan savol bering:\n\n"
-        "• 'O\'g\'lim telefonga ko\'p vaqt o\'tkazadi'\n"
-        "• 'Qizim maktabda o\'qimaydi'\n"
-        "• 'Bola uyqu rejimiga rioya qilmaydi'\n"
-        "• 'O\'smir bola bilan qanday gaplashaman'\n\n"
-        "/start — botni qayta boshlash\n"
-        "/yangi — suhbat tarixini tozalash",
-        parse_mode="Markdown"
+        "Assalomu alaykum, onajon!\n\n"
+        "Men sizning yordamchingizman - 9-17 yoshli farzandlaringiz tarbiyasi, "
+        "talimi va kunlik rejimi boyicha maslahat beraman.\n\n"
+        "Savolingizni yozing!\n\n"
+        "Mavzular:\n"
+        "Telefon vaqtini cheklash\n"
+        "Uy vazifasi bajarmaslik\n"
+        "Osmir bilan muloqot\n"
+        "Uyqu rejimi\n"
+        "Oyin qoymaslik\n"
+        "Bola bilan suhbat"
     )
 
 async def yangi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_histories[user_id] = []
-    await update.message.reply_text("🌸 Yangi suhbat boshlandi! Savolingizni yozing.")
+    await update.message.reply_text("Yangi suhbat boshlandi! Savolingizni yozing.")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -114,12 +96,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(reply)
     except Exception as e:
         logger.error(f"Error: {e}")
-        await update.message.reply_text("⚠️ Xatolik yuz berdi. Qayta urinib ko'ring.")
+        await update.message.reply_text("Xatolik yuz berdi. Qayta urinib koring.")
 
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_cmd))
     app.add_handler(CommandHandler("yangi", yangi))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     logger.info("Bot ishga tushdi...")
